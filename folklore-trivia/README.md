@@ -2,8 +2,6 @@
 
 A 15-question quiz on Russian folklore and Pushkin's fairy tales, in English and Russian.
 
-## Play it
-
 **Online:** https://avelaxonov.github.io/script-vault/folklore-trivia/
 
 **Offline:** download [`russian-folklore-trivia.html`](russian-folklore-trivia.html) and double-click it. The whole app is one file, no internet needed after that.
