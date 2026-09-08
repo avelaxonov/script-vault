@@ -12,7 +12,7 @@ Go down for MATLAB version
 
 | File | What it is |
 |---|---|
-| [`index.html`](index.html) | The app as served by GitHub Pages — fully self-contained. |
+| [`index.html`](index.html) | The webpage of the app published & powered through GitHub Pages (fully self-contained). |
 | [`species-counter.html`](species-counter.html) | Identical copy under a descriptive name, for downloading and running offline. |
 | [`SpeciesCounter.m`](SpeciesCounter.m) | The MATLAB version of the same tool. |
 
@@ -37,7 +37,7 @@ The photo counter shows whether the current photo is in your results:
 - green `✓ logged` means written.
 Browsing away from unlogged counts never loses them, and the session auto-saves so you can quit and resume.
 
-**Output:** `species_counts.csv` (wide — one row per photo) and `species_counts_long.csv` (tidy — one row per photo × species, ready for `dplyr`/`ggplot2`). You can also define your own per-photo columns such as `transect` or `depth` under ⚙ → Custom columns.
+**Output:** `species_counts.csv` (one row per photo) and `species_counts_long.csv` (one row per photo × species, ready to use for `dplyr`/`ggplot2`). You can also define your own per-photo columns such as `transect` or `depth` under ⚙ → Custom columns.
 
 ## Running the MATLAB version
 
