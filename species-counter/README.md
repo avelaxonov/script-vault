@@ -2,7 +2,7 @@
 
 Count organisms in survey photos and export analysis-ready CSVs — a browser app plus the original MATLAB version.
 
-**[▶ Play it online](https://avelaxonov.github.io/script-vault/species-counter/)** · **[⤓ Download for offline use](species-counter.html)** *(right-click → Save link as…, then double-click the file)*
+**[🌐 Open in browser](https://avelaxonov.github.io/script-vault/species-counter/)** · **[⤓ Download for offline use](species-counter.html)** *(right-click → Save link as…, then double-click the file)*
 
 Everything runs locally in your browser. Your photos are never uploaded anywhere.
 
