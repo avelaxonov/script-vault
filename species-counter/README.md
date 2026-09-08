@@ -18,7 +18,7 @@ Everything runs locally in your browser. Your photos are never uploaded anywhere
 
 1. **Open Folder** and pick a folder of photos.
 2. **Add Species** for whatever you're counting.
-3. Count with the number keys — `1`–`9` add one to that species, `Shift` subtracts.
+3. Count by clicking on `+/-` **OR** with the number keys — `1`–`9` add one to that species; `Shift` subtracts.
 4. Press `Enter` to log the photo and advance.
 
 | Key | Action |
@@ -29,13 +29,17 @@ Everything runs locally in your browser. Your photos are never uploaded anywhere
 | `Enter` | Log photo and advance |
 | `P` / `F` / `0` | Toggle present / flag uncertain / reset count |
 
-The photo counter shows whether the current photo is in your results: plain `12 / 300` means nothing entered, amber `● unlogged` means counts entered but not yet written to the CSV, green `✓ logged` means written. Browsing away from un-logged counts never loses them, and the session auto-saves so you can quit and resume.
+The photo counter shows whether the current photo is in your results: 
+- plain `12 / 300` means nothing entered,
+- amber `● unlogged` means counts entered but not yet written to the CSV,
+- green `✓ logged` means written.
+Browsing away from unlogged counts never loses them, and the session auto-saves so you can quit and resume.
 
 **Output:** `species_counts.csv` (wide — one row per photo) and `species_counts_long.csv` (tidy — one row per photo × species, ready for `dplyr`/`ggplot2`). You can also define your own per-photo columns such as `transect` or `depth` under ⚙ → Custom columns.
 
 ## Running the MATLAB version
 
-Requires MATLAB R2020b or newer. Download [`matlab/SpeciesCounter.m`](matlab/SpeciesCounter.m), then in MATLAB:
+Requires MATLAB R2020b or newer. Download [`SpeciesCounter.m`](/SpeciesCounter.m), then in MATLAB:
 
 ```matlab
 cd /path/to/folder/containing/SpeciesCounter.m
