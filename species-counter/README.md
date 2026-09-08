@@ -12,7 +12,7 @@ Everything runs locally in your browser. Your photos are never uploaded anywhere
 |---|---|
 | [`index.html`](index.html) | The app as served by GitHub Pages — fully self-contained. |
 | [`species-counter.html`](species-counter.html) | Identical copy under a descriptive name, for downloading and running offline. |
-| [`matlab/SpeciesCounter.m`](matlab/SpeciesCounter.m) | The MATLAB version of the same tool. |
+| [`SpeciesCounter.m`](SpeciesCounter.m) | The MATLAB version of the same tool. |
 
 ## Using the app
 
