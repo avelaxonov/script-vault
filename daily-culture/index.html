@@ -143,6 +143,8 @@ a.tile:active .icon, a.tile:hover .icon { transform: translateY(-3px) scale(1.04
 .tile.done .icon { filter: var(--done-filter); }
 .tile.done .tname { color: var(--muted); }
 .tile.done .when { color: var(--grow); }
+.tile.excused .icon { opacity: .62; }
+.tile.excused .tname { color: var(--muted); }
 .badge { position: absolute; top: -6px; right: calc(50% - 39px); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; padding: 0; border: 2px solid var(--bg); }
 .badge.new { width: 13px; height: 13px; top: -3px; right: calc(50% - 35px); background: var(--coral); animation: ping 2.2s ease-out infinite; pointer-events: none; }
 @keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--coral) 55%, transparent); } 70%,100% { box-shadow: 0 0 0 9px transparent; } }
@@ -200,6 +202,9 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
 .swatches label { position: relative; width: 30px; height: 30px; border-radius: 9px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
 .swatches input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .swatches label:has(input:checked) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.daily { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--field); border-radius: 999px; padding: 8px 13px; font-size: .84rem; cursor: pointer; }
+.chip input { accent-color: var(--grow-fill); margin: 0; width: 16px; height: 16px; }
 .status { margin: 0; font-size: .84rem; color: var(--muted); min-height: 1.2em; }
 .status.err { color: var(--coral); }
 .status.ok { color: var(--grow); }
@@ -389,7 +394,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
 
   <footer class="foot">
     <p>Tap a game to open it. It counts as done and grows a colony. Tap the green check to undo. Each game unlocks again at its own reset time.</p>
-    <p>Everything saves in this browser. Edit, share and restore are in the ⋯ menu. Games you remove go to storage, so you can bring them back anytime.</p>
+    <p>Everything saves in this browser. Edit, share and restore are in the ⋯ menu. Games you remove go to storage, so you can bring them back anytime. Tap Edit, then a game, to make it optional or skip it for today.</p>
   </footer>
 </div>
 
@@ -515,6 +520,10 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
       </div>
     </div>
     <p class="hint" id="fHint"></p>
+    <div class="daily" id="dailyRow">
+      <label class="chip"><input type="checkbox" id="fOptional"> Optional. Only counts on days I play it</label>
+      <button class="btn" type="button" id="fSkip">Skip today</button>
+    </div>
     <div class="actions" id="moveRow">
       <button class="btn" type="button" id="fLeft">← Move earlier</button>
       <button class="btn" type="button" id="fRight">Move later →</button>
@@ -764,6 +773,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     if (!MEDIA.some((m) => m.id === s.medium)) s.medium = "lb";
     if (!s.bench || typeof s.bench !== "object") s.bench = {};
     if (!s.cal || typeof s.cal !== "object") s.cal = {};
+    if (!s.skip || typeof s.skip !== "object") s.skip = {};
     if (!s.lastWipe && Object.keys(s.bench).length) s.lastWipe = Object.keys(s.bench).sort().pop();
     delete s.best; delete s.found;
     return s;
@@ -772,7 +782,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     for (const k of [KEY, OLD_KEY]) {
       try {
         const s = JSON.parse(localStorage.getItem(k));
-        if (s && Array.isArray(s.games)) return migrate({ games: s.games, done: s.done || {}, history: s.history || {}, medium: s.medium, best: s.best, duty: s.duty, bench: s.bench, cal: s.cal, lastWipe: s.lastWipe, forceDirty: s.forceDirty, greeted: s.greeted });
+        if (s && Array.isArray(s.games)) return migrate({ games: s.games, done: s.done || {}, history: s.history || {}, medium: s.medium, best: s.best, duty: s.duty, bench: s.bench, cal: s.cal, lastWipe: s.lastWipe, forceDirty: s.forceDirty, greeted: s.greeted, skip: s.skip });
       } catch (e) {}
     }
     return migrate({ games: clone(DEFAULTS), done: {}, history: {}, medium: "lb" });
@@ -794,7 +804,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
   function logColony(g, ts) {
     const k = dayKey(ts || Date.now()), e = entryFor(k);
     if (!e.g.some((x) => x[0] === g.id)) e.g.push([g.id, colonyColor(g), g.name]);
-    if (k === dayKey(Date.now())) { e.t = visibleGames().length; e.m = state.medium; }
+    if (k === dayKey(Date.now())) { e.t = countedGames(Date.now()).length; e.m = state.medium; }
   }
   function unlogColony(g) {
     const e = state.history[dayKey(Date.now())];
@@ -804,7 +814,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
   function reconcile() {
     for (const g of state.games) { const ts = state.done[g.id]; if (ts) logColony(g, ts); }
     const today = state.history[dayKey(Date.now())];
-    if (today && today.g) today.t = visibleGames().length;
+    if (today && today.g) today.t = countedGames(Date.now()).length;
   }
   function totals() {
     let colonies = 0, full = 0, best = 0, run = 0, prev = null;
@@ -872,6 +882,10 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
   const clock = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
   function dur(ms) { const m = Math.max(1, Math.round(ms / 60000)), h = Math.floor(m / 60); return h ? h + "h " + (m % 60) + "m" : m + "m"; }
   function isDone(g, now) { return (state.done[g.id] || 0) >= lastReset(g, now); }
+  const isSkipped = (g, now) => !!state.skip && (state.skip[g.id] || 0) >= lastReset(g, now || Date.now());
+  const isExcused = (g, now) => !!g.optional || isSkipped(g, now);
+  // games that count today: required ones, plus optional or skipped ones you played anyway
+  const countedGames = (now) => visibleGames().filter((g) => !isExcused(g, now) || isDone(g, now));
 
   /* ---------- colonies + plates ---------- */
   const layoutCache = {};
@@ -1008,14 +1022,14 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     for (const g of games) cols += colonySVG(g.id, colonyColor(g), pos[g.id], med, gid, "col");
     $("dish").innerHTML = "<defs>" + plateDefs(gid, med) + "</defs>" + plateBase(gid, med) + cols + plateGlass(gid) + faceParts(gid, 0, true);
   }
-  function updateDish(games, flags) {
+  function updateDish(games, flags, total) {
     const sig = state.medium + "#" + games.map((g) => g.id + ":" + colonyColor(g)).join("|");
     if (sig !== dishSig) { buildDish(games); dishSig = sig; void $("dish").getBoundingClientRect(); }
     games.forEach((g, i) => {
       const el = $("dish").querySelector('.col[data-id="' + CSS.escape(g.id) + '"]');
       if (el) el.classList.toggle("on", flags[i]);
     });
-    if (!greeting) setFace(stageOf(flags.filter(Boolean).length, games.length));
+    if (!greeting) setFace(stageOf(flags.filter(Boolean).length, total));
     document.documentElement.style.setProperty("--glow-hot", mediumOf().glow);
   }
 
@@ -1031,7 +1045,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
   const dutyDone = () => state.duty.days[dayKey(Date.now())] != null;
   let tapTimer = null, lastTap = 0;
   function quip() {
-    const now = Date.now(), vis = visibleGames(), left = vis.filter((g) => !isDone(g, now)).length;
+    const now = Date.now(), vis = countedGames(now), left = vis.filter((g) => !isDone(g, now)).length;
     const d = new Date();
     let pool = (vis.length && left === 0 ? QUIPS_FULL : quipsPartial(left)).slice();
     if (d.getMonth() === 9 && d.getDate() === 23) pool = QUIPS_MOLE.slice();
@@ -1061,14 +1075,14 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     const now = Date.now();
     const vis = visibleGames();
     const flags = vis.map((g) => isDone(g, now));
-    const n = flags.filter(Boolean).length, total = vis.length;
+    const n = flags.filter(Boolean).length, total = countedGames(now).length;
 
     document.documentElement.style.setProperty("--d", (total ? n / total : 0).toFixed(3));
     document.body.classList.toggle("editing", editing);
     $("date").textContent = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "short", day: "numeric" }).format(now);
     $("cfu").innerHTML = "<b>" + n + "</b> / " + total + " CFU";
     $("dishBtn").setAttribute("aria-label", "Petri dish, " + n + " of " + total + " colonies grown. Tap it.");
-    updateDish(vis, flags);
+    updateDish(vis, flags, total);
     const s = streak(), st = $("streak");
     st.hidden = s < 1;
     st.innerHTML = FLAME + s + " day streak";
@@ -1088,21 +1102,23 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     for (const k of order) {
       const idxs = byGroup[k];
       const gd = idxs.filter((i) => isDone(state.games[i], now)).length;
-      html += '<section class="shelf"><h2><span>' + esc(k) + '</span><span class="n">' + gd + " / " + idxs.length + '</span></h2><div class="grid">';
+      const gt = idxs.filter((i) => !isExcused(state.games[i], now) || isDone(state.games[i], now)).length;
+      html += '<section class="shelf"><h2><span>' + esc(k) + '</span><span class="n">' + gd + " / " + gt + '</span></h2><div class="grid">';
       for (const i of idxs) {
-        const g = state.games[i], done = isDone(g, now);
+        const g = state.games[i], done = isDone(g, now), exc = !done && isExcused(g, now);
         const nxt = nextReset(g, now), left = nxt - now;
-        const when = done ? "✓ " + clock.format(nxt) : dur(left);
-        const soon = !done && left < 2 * 3600e3;
+        const when = done ? "✓ " + clock.format(nxt) : exc ? (g.optional ? "optional" : "skipped") : dur(left);
+        const soon = !done && !exc && left < 2 * 3600e3;
         const label = g.name + (done ? ", done, next one at " + clock.format(nxt) : ", " + dur(left) + " left");
         if (editing) {
           html += '<button type="button" class="tile" data-act="edit" data-i="' + i + '" style="--i:' + i + '" aria-label="Edit ' + esc(g.name) + '">' +
-            '<span class="icon">' + iconFor(g) + '</span><span class="badge edit" aria-hidden="true">✎</span><span class="tname">' + esc(g.name) + "</span></button>";
+            '<span class="icon">' + iconFor(g) + '</span><span class="badge edit" aria-hidden="true">✎</span><span class="tname">' + esc(g.name) + "</span>" +
+            (g.optional ? '<span class="when">optional</span>' : isSkipped(g, now) ? '<span class="when">skipped today</span>' : "") + "</button>";
         } else {
-          html += '<div class="tile' + (done ? " done" : "") + '" data-i="' + i + '">' +
+          html += '<div class="tile' + (done ? " done" : "") + (exc ? " excused" : "") + '" data-i="' + i + '">' +
             '<a class="tile" data-act="open" href="' + esc(g.url) + '" target="_blank" rel="noopener" aria-label="' + esc(label) + '" style="width:100%">' +
               '<span class="icon">' + iconFor(g) + '</span><span class="tname">' + esc(g.name) + '</span><span class="when' + (soon ? " soon" : "") + '">' + esc(when) + "</span></a>" +
-            (done ? '<button class="badge check" data-act="undo" aria-label="Mark ' + esc(g.name) + ' not done">' + TICK + "</button>" : '<span class="badge new" aria-hidden="true"></span>') +
+            (done ? '<button class="badge check" data-act="undo" aria-label="Mark ' + esc(g.name) + ' not done">' + TICK + "</button>" : exc ? "" : '<span class="badge new" aria-hidden="true"></span>') +
             "</div>";
         }
       }
@@ -1216,7 +1232,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
 
   /* ---------- share list ---------- */
   function encodeList() {
-    const json = JSON.stringify(state.games.map((g) => { const o = { id: g.id, name: g.name, url: g.url, group: g.group, reset: g.reset }; if (g.glyph) o.glyph = g.glyph; if (g.color) o.color = g.color; if (g.hidden) o.hidden = true; return o; }));
+    const json = JSON.stringify(state.games.map((g) => { const o = { id: g.id, name: g.name, url: g.url, group: g.group, reset: g.reset }; if (g.glyph) o.glyph = g.glyph; if (g.color) o.color = g.color; if (g.hidden) o.hidden = true; if (g.optional) o.optional = true; return o; }));
     const bytes = new TextEncoder().encode(json);
     let bin = ""; bytes.forEach((b) => { bin += String.fromCharCode(b); });
     return "CULTURE1." + btoa(bin);
@@ -1237,12 +1253,13 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
       if (g.glyph) o.glyph = String(g.glyph).slice(0, 3);
       if (g.color && /^#[0-9a-f]{6}$/i.test(g.color)) o.color = g.color;
       if (g.hidden) o.hidden = true;
+      if (g.optional) o.optional = true;
       return o;
     });
   }
   function b64(str) { const bytes = new TextEncoder().encode(str); let bin = ""; bytes.forEach((x) => { bin += String.fromCharCode(x); }); return btoa(bin); }
   function unb64(t) { return new TextDecoder().decode(Uint8Array.from(atob(t.replace(/\s+/g, "")), (c) => c.charCodeAt(0))); }
-  const encodeAll = () => "CULTURE2." + b64(JSON.stringify({ games: state.games, done: state.done, history: state.history, medium: state.medium, duty: state.duty, cal: state.cal, lastWipe: state.lastWipe || "", greeted: state.greeted || "" }));
+  const encodeAll = () => "CULTURE2." + b64(JSON.stringify({ games: state.games, done: state.done, history: state.history, medium: state.medium, duty: state.duty, cal: state.cal, lastWipe: state.lastWipe || "", greeted: state.greeted || "", skip: state.skip || {} }));
   let loadArmed = false;
   function openShare() {
     $("codeOut").hidden = true; $("codeIn").value = ""; loadArmed = false;
@@ -1268,7 +1285,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
       try { obj = JSON.parse(unb64(m2[1])); if (!obj || !Array.isArray(obj.games)) throw 0; }
       catch (e) { st.textContent = "That progress code didn't work. Copy it again and paste the whole thing."; st.className = "status err"; return; }
       if (!loadArmed) { loadArmed = true; $("loadCode").textContent = "Replace everything here"; st.textContent = "This swaps everything on this device for the copied progress."; st.className = "status"; return; }
-      state = migrate({ games: obj.games, done: obj.done || {}, history: obj.history || {}, medium: obj.medium, duty: obj.duty, cal: obj.cal, lastWipe: obj.lastWipe, greeted: obj.greeted });
+      state = migrate({ games: obj.games, done: obj.done || {}, history: obj.history || {}, medium: obj.medium, duty: obj.duty, cal: obj.cal, lastWipe: obj.lastWipe, greeted: obj.greeted, skip: obj.skip });
       dishSig = ""; spillSig = ""; commit();
       closeSheet("shareSheet");
       toast("Progress moved", "Everything from your other device is here now.");
@@ -1320,6 +1337,9 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     $("moveRow").hidden = !g;
     setMoveButtons();
     $("fStore").hidden = !g;
+    $("fOptional").checked = !!(g && g.optional);
+    $("fSkip").hidden = !g || !!g.optional || isDone(g, Date.now());
+    $("fSkip").textContent = g && isSkipped(g) ? "Unskip today" : "Skip today";
     const del = $("fDelete"); del.hidden = !g || isDefault(g.id); del.textContent = "Delete forever";
     previewIcon();
     openSheet("editSheet", g ? "fUrl" : "fName");
@@ -1339,6 +1359,18 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     commit();
     toast("Back on your screen", g.name + " is counting again.");
   }
+  $("fSkip").addEventListener("click", () => {
+    if (editIndex < 0) return;
+    const g = state.games[editIndex];
+    state.skip = state.skip || {};
+    if (isSkipped(g)) delete state.skip[g.id]; else state.skip[g.id] = Date.now();
+    closeSheet("editSheet"); commit();
+    toast(isSkipped(g) ? "Skipped for today" : "Back on today's plate", isSkipped(g) ? g.name + " is off the hook until it resets." : g.name + " counts again today.");
+  });
+  $("fOptional").addEventListener("change", () => {
+    const g = editIndex >= 0 ? state.games[editIndex] : null;
+    $("fSkip").hidden = !g || $("fOptional").checked || isDone(g, Date.now());
+  });
   $("fLeft").addEventListener("click", () => move(-1));
   $("fRight").addEventListener("click", () => move(1));
   $("fStore").addEventListener("click", () => {
@@ -1369,8 +1401,11 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     const g = { id: old ? old.id : "g" + Date.now().toString(36), name: name, url: url, group: $("fGroup").value.trim() || "Games", reset: reset };
     const glyph = $("fGlyph").value.trim(); if (glyph) g.glyph = glyph;
     const col = document.querySelector('input[name="fColor"]:checked'); if (col) g.color = col.value;
+    if ($("fOptional").checked) { g.optional = true; if (state.skip) delete state.skip[g.id]; }
+    const becameOptional = !!g.optional && !(old && old.optional), lostOptional = !g.optional && !!(old && old.optional);
     if (old) state.games[editIndex] = g; else state.games.push(g);
     closeSheet("editSheet"); commit();
+    toast("Saved", becameOptional ? g.name + " is optional now. No dot, and it only counts on days you play it." : lostOptional ? g.name + " counts every day again." : g.name + " is updated.");
   });
   $("restore").addEventListener("click", () => {
     let k = 0;
@@ -1492,7 +1527,7 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
     $("gTimer").textContent = mmss(G.t);
   }
   function startGame() {
-    Object.assign(G, { ents: [], parts: [], score: 0, cleared: 0, lives: 3, t: 0, next: 400, nextNys: 8000, nextEtoh: 20000 + Math.random() * 6000, clean: 0, on: true, shake: 0, combo: 0, lastHit: 0 });
+    Object.assign(G, { ents: [], parts: [], score: 0, cleared: 0, lives: 3, t: 0, next: 400, nextNys: 7000, nextEtoh: 20000 + Math.random() * 6000, clean: 0, on: true, shake: 0, combo: 0, lastHit: 0 });
     $("gPanel").hidden = true; hud();
     G.last = performance.now(); requestAnimationFrame(loop);
   }
@@ -1550,7 +1585,10 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
         }
         G.next = Math.max(260, 900 - G.t * .011);
       }
-      if (G.nextNys <= 0 && G.ents.filter(isFungus).length >= 5 && !G.ents.some((e) => e.kind === "nys")) { spawn("nys"); G.nextNys = 14000; }
+      // nystatin drops in on a rolling timer that speeds up as mold piles up
+      const fungi = G.ents.filter(isFungus).length;
+      G.nextNys -= dt * (fungi >= 6 ? 1.6 : fungi >= 3 ? 1 : .5);
+      if (G.nextNys <= 0 && fungi >= 1 && !G.ents.some((e) => e.kind === "nys")) { spawn("nys"); G.nextNys = 11000 + Math.random() * 4000; }
       for (const e of G.ents) e.age += dt;
       const ripe = G.ents.filter((e) => isFungus(e) && e.age >= e.life);
       G.ents = G.ents.filter((e) => e.age < e.life);
@@ -1607,7 +1645,9 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
   function pickup(e) {
     const u = G.S / 300, k = e.age / e.life, bob = Math.sin(e.age / 180) * 2 * u;
     ctx.save(); ctx.translate(e.x, e.y + bob); ctx.globalAlpha = k > .8 ? (1 - k) / .2 : 1;
-    ctx.beginPath(); ctx.arc(0, 0, 21 * u, 0, Math.PI * 2); ctx.fillStyle = e.kind === "nys" ? "rgba(255,210,120,.28)" : "rgba(160,220,255,.28)"; ctx.fill();
+    const pulse = (Math.sin(e.age / 160) + 1) / 2;
+    ctx.beginPath(); ctx.arc(0, 0, (22 + pulse * 6) * u, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,200,90," + (.22 + pulse * .2) + ")"; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, (25 + pulse * 7) * u, 0, Math.PI * 2); ctx.strokeStyle = "rgba(255,215,130," + (.55 - pulse * .35) + ")"; ctx.lineWidth = 2; ctx.stroke();
     ctx.lineWidth = 1.4; ctx.strokeStyle = "#2A3A4A";
     if (e.kind === "etoh") {
       ctx.fillStyle = "#FFFFFF";
@@ -1945,8 +1985,8 @@ textarea { min-height: 70px; resize: vertical; font-family: var(--mono); font-si
   render();
   (function greet() {
     const today = dayKey(Date.now()), y = new Date(); y.setDate(y.getDate() - 1);
-    const vis = visibleGames(), n = vis.filter((g) => isDone(g, Date.now())).length;
-    if (state.greeted === today || n === vis.length || !confluent(state.history[dayKey(y.getTime())])) return;
+    const vis = countedGames(Date.now()), n = vis.filter((g) => isDone(g, Date.now())).length;
+    if (state.greeted === today || (vis.length && n === vis.length) || !confluent(state.history[dayKey(y.getTime())])) return;
     state.greeted = today; saveLocal();
     greeting = true; setFace(4);
     setTimeout(() => { const h = $("dish").querySelector(".fp-hat"); if (h) h.classList.add("tip"); say("Morning. Fresh plate today.", 3000); }, 700);
